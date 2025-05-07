@@ -6,7 +6,7 @@ import { Buffer } from "buffer";
 import { download } from "./lib/download";
 import { generateDataMatrixSvg } from "./lib/generateDataMatrixSvg";
 import { drawCode } from "./lib/drawCode";
-import { PDFDocument, cmyk } from "pdf-lib";
+import { PDFDocument, cmyk, degrees } from "pdf-lib";
 import { scaleCalc } from "./lib/scaleCalc";
 import { handleChange } from "./lib/handleChange";
 
@@ -15,26 +15,28 @@ const App = () => {
   const [bufferState, setBufferState] = useState();
   const [lines, setLines] = useState();
   const [pdfUrl, setPdfUrl] = useState();
-  
+  const [resultPdf, setResultPdf] = useState();
 
-  //Скачивание файла PDF
-  const handleDownload = async () => {
+  // PDF c DataMatrix
+  const modifiedPdf = async () => {
     const dmtx_size = form.getFieldValue("dmtx_size");
     const dataMatrixSvg = await generateDataMatrixSvg(lines[0]);
     const pdfDoc = await PDFDocument.load(bufferState);
     const page = pdfDoc.getPage(0);
-    const scale = scaleCalc(dmtx_size)
+    const scale = scaleCalc(dmtx_size);
     drawCode(page, dataMatrixSvg, 170, 87, scale, dmtx_size);
     const modifiedPdfBytes = await pdfDoc.save();
-
-    download(modifiedPdfBytes);
+    return modifiedPdfBytes;
   };
-  //Логи на кпопке "Обновить"
-  const onClick = () => {
-    console.log(bufferState);
-    console.log(lines);
-    console.log(form.getFieldsValue());
-    console.log(form.getFieldValue("dmtx_size"));
+  // Загрузка результатного PDF
+  const handleDownload = async () => {
+    download(await modifiedPdf());
+  };
+  //Обновить превью PDF
+  const changePrewiev = async () => {
+    const blob = new Blob([await modifiedPdf()], { type: "application/pdf" });
+    const objectUrl = URL.createObjectURL(blob);
+    setResultPdf(objectUrl);
   };
   //Буфер загружаемого файла
   const handleBeforeUpload = async (file) => {
@@ -47,6 +49,7 @@ const App = () => {
     handleChange(file, setPdfUrl);
 
     console.log("Буфер файла:", buffer);
+
     return false;
   };
   //Чтение строк в txt
@@ -74,155 +77,198 @@ const App = () => {
   };
 
   return (
-    <Form
-      form={form}
-      name="basic"
-      layout={"vertical"}
-      style={{ maxWidth: 255, padding: 10 }}
-      initialValues={{ remember: true }}
-      autoComplete="off"
-    >
-      <Row gutter={12}>
-        {/* Загрузить файл PDF */}
-        <Col span={12}>
-          <Form.Item name="file">
-            <Upload
-              beforeUpload={handleBeforeUpload}
-              accept=".pdf"
-              maxCount={1}
-            >
-              <Button icon={<UploadOutlined />}>PDF</Button>
-            </Upload>
-          </Form.Item>
-        </Col>
+    <>
+      <Row>
+        <Form
+          form={form}
+          name="basic"
+          layout={"vertical"}
+          style={{ maxWidth: 255, padding: 10 }}
+          initialValues={{ remember: true }}
+          autoComplete="off"
+        >
+          <Row gutter={12}>
+            {/* Загрузить файл PDF */}
+            <Col span={12}>
+              <Form.Item name="file">
+                <Upload
+                  beforeUpload={handleBeforeUpload}
+                  accept=".pdf"
+                  maxCount={1}
+                >
+                  <Button icon={<UploadOutlined />}>PDF</Button>
+                </Upload>
+              </Form.Item>
+            </Col>
 
-        {/* Загрузить файл TXT */}
-        <Col span={12}>
-          <Form.Item name="filtxt">
-            <Upload beforeUpload={beforeUploadTxt} accept=".txt" maxCount={1}>
-              <Button icon={<UploadOutlined />}>TXT</Button>
-            </Upload>
-          </Form.Item>
-        </Col>
-      </Row>
+            {/* Загрузить файл TXT */}
+            <Col span={12}>
+              <Form.Item name="filtxt">
+                <Upload
+                  beforeUpload={beforeUploadTxt}
+                  accept=".txt"
+                  maxCount={1}
+                >
+                  <Button
+                    icon={<UploadOutlined />}
+                    disabled={!pdfUrl ? true : false}
+                  >
+                    TXT
+                  </Button>
+                </Upload>
+              </Form.Item>
+            </Col>
+          </Row>
 
-      <Row gutter={12}>
-        {/* Ручьи */}
-        <Col span={12}>
-          <Form.Item
-            label="Ручьи"
-            name="rychi"
-            rules={[
-              { required: true, message: "Необходимо ввести кол-во ручев" },
-            ]}
-          >
-            <InputNumber style={{ width: "100%" }} />
-          </Form.Item>
-        </Col>
-
-        {/* Размер кода */}
-        <Col span={12}>
-          <Form.Item
-            label="Размер кода"
-            name="dmtx_size"
-            style={{ maxWidth: 350 }}
-            rules={[
-              { required: true, message: "Введите размер DataMAtrix код в мм" },
-            ]}
-          >
-            <InputNumber />
-          </Form.Item>
-        </Col>
-      </Row>
-
-      <Row gutter={12}>
-        {/* Коор-ты Х */}
-        <Col span={12}>
-          <Form.Item
-            label="Положение X"
-            name="x_point"
-            rules={[{ required: true, message: "Введите положение X" }]}
-          >
-            <InputNumber />
-          </Form.Item>
-        </Col>
-
-        {/* Коор-ты У */}
-        <Col span={12}>
-          <Form.Item
-            label="Положение Y"
-            name="y_point"
-            rules={[{ required: true, message: "Введите положение Y" }]}
-          >
-            <InputNumber />
-          </Form.Item>
-        </Col>
-      </Row>
-
-      <Row gutter={12}>
-        {/* Отступ Х */}
-        <Col span={12}>
-          <Form.Item
-            label="Отступ X"
-            name="x_indent"
-            rules={[{ required: true, message: "Введите отступ X" }]}
-          >
-            <InputNumber />
-          </Form.Item>
-        </Col>
-
-        {/* Отступ У */}
-        <Col span={12}>
-          <Form.Item
-            label="Отступ Y"
-            name="y_indent"
-            rules={[{ required: true, message: "Введите отступ Y" }]}
-          >
-            <InputNumber />
-          </Form.Item>
-        </Col>
-      </Row>
-
-      <Row gutter={12}>
-        {/* Обновить */}
-        <Col span={12}>
-          <Button onClick={onClick} style={{ marginTop: 10 }}>
-            Обновить
-          </Button>
-        </Col>
-     
-        {/* Скачать файл PDF */}
-        <Col span={12}>
-          <Form.Item name="filedownload">
-            {bufferState && lines &&(
-              <Button
-                type="primary"
-                onClick={handleDownload}
-                icon={<DownloadOutlined />}
-                style={{ marginTop: 10 }}
+          <Row gutter={12}>
+            {/* Ручьи */}
+            <Col span={12}>
+              <Form.Item
+                label="Ручьи"
+                name="rychi"
+                rules={[
+                  { required: true, message: "Необходимо ввести кол-во ручев" },
+                ]}
               >
-                Скачать PDF
+                <InputNumber style={{ width: "100%" }} disabled={!lines ? true : false}/>
+              </Form.Item>
+            </Col>
+
+            {/* Размер кода */}
+            <Col span={12}>
+              <Form.Item
+                label="Размер кода"
+                name="dmtx_size"
+                style={{ maxWidth: 350 }}
+                rules={[
+                  {
+                    required: true,
+                    message: "Введите размер DataMAtrix код в мм",
+                  },
+                ]}
+              >
+                <InputNumber
+                  onChange={changePrewiev}
+                  disabled={!lines ? true : false}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={12}>
+            {/* Коор-ты Х */}
+            <Col span={12}>
+              <Form.Item
+                label="Положение X"
+                name="x_point"
+                rules={[{ required: true, message: "Введите положение X" }]}
+              >
+                <InputNumber disabled={!lines ? true : false} />
+              </Form.Item>
+            </Col>
+
+            {/* Коор-ты У */}
+            <Col span={12}>
+              <Form.Item
+                label="Положение Y"
+                name="y_point"
+                rules={[{ required: true, message: "Введите положение Y" }]}
+              >
+                <InputNumber disabled={!lines ? true : false} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={12}>
+            {/* Отступ Х */}
+            <Col span={12}>
+              <Form.Item
+                label="Отступ X"
+                name="x_indent"
+                rules={[{ required: true, message: "Введите отступ X" }]}
+              >
+                <InputNumber disabled={!lines ? true : false} />
+              </Form.Item>
+            </Col>
+
+            {/* Отступ У */}
+            <Col span={12}>
+              <Form.Item
+                label="Отступ Y"
+                name="y_indent"
+                rules={[{ required: true, message: "Введите отступ Y" }]}
+              >
+                <InputNumber disabled={!lines ? true : false} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={12}>
+            {/* Обновить */}
+            <Col span={12}>
+              <Button
+                onClick={changePrewiev}
+                style={{ marginTop: 15 }}
+                disabled={true}
+              >
+                Обновить
               </Button>
+            </Col>
+
+            {/* Скачать файл PDF */}
+            <Col span={12}>
+              <Form.Item name="filedownload">
+                {bufferState && lines && (
+                  <Button
+                    type="primary"
+                    onClick={handleDownload}
+                    icon={<DownloadOutlined />}
+                    style={{ marginTop: 15 }}
+                  >
+                    Скачать PDF
+                  </Button>
+                )}
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+
+        {/* Фрейм для PDF */}
+        <Col span={12}>
+          <div
+            style={{
+              height: "calc(100vh - 48px)",
+              border: "1px solid #d9d9d9",
+              borderRadius: 2,
+              padding: 8,
+              background: pdfUrl ? "none" : "#fafafa",
+            }}
+          >
+            {pdfUrl ? (
+              <iframe
+                src={!lines ? pdfUrl : resultPdf}
+                title="PDF Preview"
+                width="100%"
+                height="100%"
+                style={{ border: "none" }}
+              />
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "100%",
+                  color: "#bfbfbf",
+                }}
+              >
+                <span>Превью PDF появится здесь</span>
+              </div>
             )}
-          </Form.Item>
+          </div>
         </Col>
       </Row>
-      
-      <Form.Item name="iframe">
-      {pdfUrl && (
-        <div style={{ marginTop: '20px', border: '1px solid #d9d9d9' }}>
-          <iframe 
-            src={pdfUrl} 
-            title="PDF Viewer"
-            width="1350px" 
-            height="1300px"
-            style={{ border: 'none' }}
-          />
-        </div>
-      )}
-      </Form.Item>
-
-    </Form>
+    </>
   );
 };
 export default App;
