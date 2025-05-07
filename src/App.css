@@ -3,5 +3,9 @@
 }
 
 .ant-btn{
-  width: 90%;
+  width: 100%;
+}
+
+.ant-upload{
+  width: 100%;
 }

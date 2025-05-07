@@ -5,6 +5,6 @@ export async function generateDataMatrixSvg(code) {
     bcid: "datamatrix", // Тип кода
     text: code, // Ваше сообщение
     includetext: false, // Если нужен человекочитаемый текст
-    scale: 6.44,
+    scale: 0.5,
   });
 }

@@ -7,31 +7,34 @@ import { download } from "./lib/download";
 import { generateDataMatrixSvg } from "./lib/generateDataMatrixSvg";
 import { drawCode } from "./lib/drawCode";
 import { PDFDocument, cmyk } from "pdf-lib";
+import { scaleCalc } from "./lib/scaleCalc";
+import { handleChange } from "./lib/handleChange";
 
 const App = () => {
   const [form] = Form.useForm();
   const [bufferState, setBufferState] = useState();
   const [lines, setLines] = useState();
-  //Скачивание файла PDF
-  // const download = useDownload();
+  const [pdfUrl, setPdfUrl] = useState();
+  
 
+  //Скачивание файла PDF
   const handleDownload = async () => {
-    const dataMatrixSvg = await generateDataMatrixSvg(lines[0])
+    const dmtx_size = form.getFieldValue("dmtx_size");
+    const dataMatrixSvg = await generateDataMatrixSvg(lines[0]);
     const pdfDoc = await PDFDocument.load(bufferState);
     const page = pdfDoc.getPage(0);
-    drawCode(page, dataMatrixSvg, 170, 87, 50)
+    const scale = scaleCalc(dmtx_size)
+    drawCode(page, dataMatrixSvg, 170, 87, scale, dmtx_size);
     const modifiedPdfBytes = await pdfDoc.save();
 
     download(modifiedPdfBytes);
-  }
-
-  
-
+  };
   //Логи на кпопке "Обновить"
   const onClick = () => {
     console.log(bufferState);
     console.log(lines);
     console.log(form.getFieldsValue());
+    console.log(form.getFieldValue("dmtx_size"));
   };
   //Буфер загружаемого файла
   const handleBeforeUpload = async (file) => {
@@ -41,10 +44,11 @@ const App = () => {
 
     setBufferState(buffer);
 
+    handleChange(file, setPdfUrl);
+
     console.log("Буфер файла:", buffer);
     return false;
   };
-
   //Чтение строк в txt
   const handleFileRead = (filtxt) => {
     return new Promise((resolve, reject) => {
@@ -74,11 +78,11 @@ const App = () => {
       form={form}
       name="basic"
       layout={"vertical"}
-      style={{ maxWidth: 270, padding: 10 }}
+      style={{ maxWidth: 255, padding: 10 }}
       initialValues={{ remember: true }}
       autoComplete="off"
     >
-      <Row gutter={24}>
+      <Row gutter={12}>
         {/* Загрузить файл PDF */}
         <Col span={12}>
           <Form.Item name="file">
@@ -87,7 +91,7 @@ const App = () => {
               accept=".pdf"
               maxCount={1}
             >
-              <Button icon={<UploadOutlined />}>Загрузить PDF</Button>
+              <Button icon={<UploadOutlined />}>PDF</Button>
             </Upload>
           </Form.Item>
         </Col>
@@ -96,7 +100,7 @@ const App = () => {
         <Col span={12}>
           <Form.Item name="filtxt">
             <Upload beforeUpload={beforeUploadTxt} accept=".txt" maxCount={1}>
-              <Button icon={<UploadOutlined />}>Загрузить TXT</Button>
+              <Button icon={<UploadOutlined />}>TXT</Button>
             </Upload>
           </Form.Item>
         </Col>
@@ -179,31 +183,23 @@ const App = () => {
         </Col>
       </Row>
 
-      <Row>
+      <Row gutter={12}>
         {/* Обновить */}
         <Col span={12}>
-          <Button onClick={onClick} style={{ marginBottom: 20 }}>
+          <Button onClick={onClick} style={{ marginTop: 10 }}>
             Обновить
           </Button>
         </Col>
-
-        {/* SVG */}
-        <Col span={12}>
-          <Button onClick={handleDownload} style={{ marginBottom: 20 }}>
-            SVG
-          </Button>
-        </Col>
-      </Row>
-
-      <Row>
+     
         {/* Скачать файл PDF */}
-        <Col span={24}>
+        <Col span={12}>
           <Form.Item name="filedownload">
-            {bufferState && (
+            {bufferState && lines &&(
               <Button
                 type="primary"
                 onClick={handleDownload}
                 icon={<DownloadOutlined />}
+                style={{ marginTop: 10 }}
               >
                 Скачать PDF
               </Button>
@@ -211,6 +207,21 @@ const App = () => {
           </Form.Item>
         </Col>
       </Row>
+      
+      <Form.Item name="iframe">
+      {pdfUrl && (
+        <div style={{ marginTop: '20px', border: '1px solid #d9d9d9' }}>
+          <iframe 
+            src={pdfUrl} 
+            title="PDF Viewer"
+            width="1350px" 
+            height="1300px"
+            style={{ border: 'none' }}
+          />
+        </div>
+      )}
+      </Form.Item>
+
     </Form>
   );
 };
