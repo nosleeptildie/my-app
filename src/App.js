@@ -4,11 +4,10 @@ import { Button, Form, Upload, InputNumber, Row, Col } from "antd";
 import { DownloadOutlined, UploadOutlined } from "@ant-design/icons";
 import { Buffer } from "buffer";
 import { download } from "./lib/download";
-import { generateDataMatrixSvg } from "./lib/generateDataMatrixSvg";
-import { drawCode } from "./lib/drawCode";
 import { PDFDocument, cmyk, degrees } from "pdf-lib";
 import { scaleCalc } from "./lib/scaleCalc";
 import { handleChange } from "./lib/handleChange";
+import { flood } from "./lib/flood";
 
 const App = () => {
   const [form] = Form.useForm();
@@ -20,11 +19,18 @@ const App = () => {
   // PDF c DataMatrix
   const modifiedPdf = async () => {
     const dmtx_size = form.getFieldValue("dmtx_size");
-    const dataMatrixSvg = await generateDataMatrixSvg(lines[0]);
+    const floods = form.getFieldValue("rychi");
+    const x = form.getFieldValue("x_point");
+    const y = form.getFieldValue("y_point");
+    const repeatRigth = form.getFieldValue("x_indent");
+    const repeatTop = form.getFieldValue("y_indent");
+    const scale = scaleCalc(dmtx_size);
+    
     const pdfDoc = await PDFDocument.load(bufferState);
     const page = pdfDoc.getPage(0);
-    const scale = scaleCalc(dmtx_size);
-    drawCode(page, dataMatrixSvg, 170, 87, scale, dmtx_size);
+    
+    flood(floods, lines, page, scale, x, y, repeatRigth, repeatTop, dmtx_size)
+
     const modifiedPdfBytes = await pdfDoc.save();
     return modifiedPdfBytes;
   };
@@ -34,6 +40,7 @@ const App = () => {
   };
   //Обновить превью PDF
   const changePrewiev = async () => {
+   
     const blob = new Blob([await modifiedPdf()], { type: "application/pdf" });
     const objectUrl = URL.createObjectURL(blob);
     setResultPdf(objectUrl);
@@ -130,7 +137,7 @@ const App = () => {
                   { required: true, message: "Необходимо ввести кол-во ручев" },
                 ]}
               >
-                <InputNumber style={{ width: "100%" }} disabled={!lines ? true : false}/>
+                <InputNumber style={{ width: "100%" }} disabled={false}/>
               </Form.Item>
             </Col>
 
@@ -149,7 +156,7 @@ const App = () => {
               >
                 <InputNumber
                   onChange={changePrewiev}
-                  disabled={!lines ? true : false}
+                  disabled={false}
                 />
               </Form.Item>
             </Col>
@@ -163,7 +170,7 @@ const App = () => {
                 name="x_point"
                 rules={[{ required: true, message: "Введите положение X" }]}
               >
-                <InputNumber disabled={!lines ? true : false} />
+                <InputNumber disabled={false} />
               </Form.Item>
             </Col>
 
@@ -174,7 +181,7 @@ const App = () => {
                 name="y_point"
                 rules={[{ required: true, message: "Введите положение Y" }]}
               >
-                <InputNumber disabled={!lines ? true : false} />
+                <InputNumber disabled={false} />
               </Form.Item>
             </Col>
           </Row>
@@ -187,7 +194,7 @@ const App = () => {
                 name="x_indent"
                 rules={[{ required: true, message: "Введите отступ X" }]}
               >
-                <InputNumber disabled={!lines ? true : false} />
+                <InputNumber disabled={false} />
               </Form.Item>
             </Col>
 
@@ -198,7 +205,7 @@ const App = () => {
                 name="y_indent"
                 rules={[{ required: true, message: "Введите отступ Y" }]}
               >
-                <InputNumber disabled={!lines ? true : false} />
+                <InputNumber disabled={ false} />
               </Form.Item>
             </Col>
           </Row>

@@ -8,7 +8,7 @@ export async function drawCode(page, svgCode, x, y, size, dmtx_size) {
   let match;
   while ((match = pathRegexp.exec(svgCode)) !== null) {
     const d = match[1];
-
+    
     // Рисуем каждый путь в PDF как вектор
     page.drawSvgPath(d, {
       x, // смещение по X
