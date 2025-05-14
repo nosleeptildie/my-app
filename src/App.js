@@ -1,13 +1,13 @@
 import "./App.css";
 import React, { useState } from "react";
-import { Button, Form, Upload, InputNumber, Row, Col } from "antd";
+import { Button, Form, Upload, InputNumber, Row, Col, Select } from "antd";
 import { DownloadOutlined, UploadOutlined } from "@ant-design/icons";
 import { Buffer } from "buffer";
 import { download } from "./lib/download";
 import { PDFDocument, cmyk, degrees } from "pdf-lib";
 import { scaleCalc } from "./lib/scaleCalc";
-import { handleChange } from "./lib/handleChange";
-import { flood } from "./lib/flood";
+import { drawCodesOnPage } from "./lib/drawCodesOnPage";
+import { copyPdf } from "./lib/copyPdf";
 
 const App = () => {
   const [form] = Form.useForm();
@@ -24,12 +24,27 @@ const App = () => {
     const y = form.getFieldValue("y_point");
     const repeatRigth = form.getFieldValue("x_indent");
     const repeatTop = form.getFieldValue("y_indent");
+    const etikR = form.getFieldValue("etik");
+    const rotate = form.getFieldValue("rotate");
     const scale = scaleCalc(dmtx_size);
-    
+
     const pdfDoc = await PDFDocument.load(bufferState);
     const page = pdfDoc.getPage(0);
-    
-    flood(floods, lines, page, scale, x, y, repeatRigth, repeatTop, dmtx_size)
+
+debugger
+    await drawCodesOnPage(
+      floods,
+      lines,
+      page,
+      scale,
+      x,
+      y,
+      repeatRigth,
+      repeatTop,
+      dmtx_size,
+      etikR,
+      rotate
+    );
 
     const modifiedPdfBytes = await pdfDoc.save();
     return modifiedPdfBytes;
@@ -40,20 +55,18 @@ const App = () => {
   };
   //Обновить превью PDF
   const changePrewiev = async () => {
-   
-    const blob = new Blob([await modifiedPdf()], { type: "application/pdf" });
-    const objectUrl = URL.createObjectURL(blob);
-    setResultPdf(objectUrl);
+    await updatePrewiev(await modifiedPdf(), setResultPdf)
   };
   //Буфер загружаемого файла
   const handleBeforeUpload = async (file) => {
+
     const arrayBuffer = await file.arrayBuffer();
 
     const buffer = Buffer.from(arrayBuffer);
 
-    setBufferState(buffer);
+    await updatePrewiev(await copyPdf(arrayBuffer, setBufferState), setPdfUrl)
 
-    handleChange(file, setPdfUrl);
+    // handleChange(file, setPdfUrl);
 
     console.log("Буфер файла:", buffer);
 
@@ -82,6 +95,12 @@ const App = () => {
     handleFileRead(file);
     return false;
   };
+  //Обновление превью
+  const updatePrewiev = async (func, stat) => {
+    const blob = new Blob([func], { type: "application/pdf" });
+    const objectUrl = URL.createObjectURL(blob);
+    stat(objectUrl);
+  };
 
   return (
     <>
@@ -90,7 +109,7 @@ const App = () => {
           form={form}
           name="basic"
           layout={"vertical"}
-          style={{ maxWidth: 255, padding: 10 }}
+          style={{ maxWidth: 300, padding: 10 }}
           initialValues={{ remember: true }}
           autoComplete="off"
         >
@@ -129,7 +148,7 @@ const App = () => {
 
           <Row gutter={12}>
             {/* Ручьи */}
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item
                 label="Ручьи"
                 name="rychi"
@@ -137,16 +156,16 @@ const App = () => {
                   { required: true, message: "Необходимо ввести кол-во ручев" },
                 ]}
               >
-                <InputNumber style={{ width: "100%" }} disabled={false}/>
+                <InputNumber style={{ width: "100%", marginTop: 20 }} disabled={false} />
               </Form.Item>
             </Col>
 
             {/* Размер кода */}
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item
                 label="Размер кода"
                 name="dmtx_size"
-                style={{ maxWidth: 350 }}
+                style={{ width: "100%" }}
                 rules={[
                   {
                     required: true,
@@ -154,10 +173,20 @@ const App = () => {
                   },
                 ]}
               >
-                <InputNumber
-                  onChange={changePrewiev}
-                  disabled={false}
-                />
+                <InputNumber onChange={changePrewiev} disabled={false} />
+              </Form.Item>
+            </Col>
+
+             {/* Этикеток в ручье */}
+            <Col span={8}>
+              <Form.Item
+                label="Эт. в ручье"
+                name="etik"
+                rules={[
+                  { required: true, message: "Необходимо ввести кол-во эт. в ручье" },
+                ]}
+              >
+                <InputNumber style={{ width: "100%" }} disabled={false} />
               </Form.Item>
             </Col>
           </Row>
@@ -188,7 +217,7 @@ const App = () => {
 
           <Row gutter={12}>
             {/* Отступ Х */}
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item
                 label="Отступ X"
                 name="x_indent"
@@ -199,26 +228,50 @@ const App = () => {
             </Col>
 
             {/* Отступ У */}
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item
                 label="Отступ Y"
                 name="y_indent"
                 rules={[{ required: true, message: "Введите отступ Y" }]}
               >
-                <InputNumber disabled={ false} />
+                <InputNumber disabled={false} />
+              </Form.Item>
+            </Col>
+
+            {/* Ротация */}
+            <Col span={8}>
+              <Form.Item
+                label="Ротация"
+                name="rotate"
+                rules={[{ required: true, message: "Выберите вариант ротации" }]}
+              >
+              <Select>
+               <Select.Option value="I">1</Select.Option>
+               <Select.Option value="N">2</Select.Option>
+               <Select.Option value="R">3</Select.Option>
+               <Select.Option value="L">4</Select.Option>
+                </Select>
               </Form.Item>
             </Col>
           </Row>
 
           <Row gutter={12}>
-            {/* Обновить */}
+            {/* Заполнить форму */}
             <Col span={12}>
-              <Button
-                onClick={changePrewiev}
-                style={{ marginTop: 15 }}
-                disabled={true}
+              <Button style={{ marginTop: 15 }}
+                onClick={() => {
+                  form.setFieldsValue({
+                    rychi: 3,
+                    x_point: 167,
+                    y_point: 101,
+                    x_indent: 238,
+                    y_indent: 123.5,
+                    etik: 7,
+                    rotate: "N",
+                  });
+                }}
               >
-                Обновить
+                Заполнить
               </Button>
             </Col>
 
