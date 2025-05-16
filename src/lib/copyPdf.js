@@ -1,18 +1,25 @@
-import { PDFDocument, cmyk, degrees } from "pdf-lib";
+import { PDFDocument } from "pdf-lib";
 
-export async function copyPdf(bufferState, setBufferState){
+export async function copyPdf(bufferState, setBufferState, pageValue, startIndex = 0) {
+  const srcDoc = await PDFDocument.load(bufferState);
+  const newDoc = await PDFDocument.create();
 
-const pdfDoc = await PDFDocument.load(bufferState);
-const newPdfDoc = await PDFDocument.create();
-const pages = await newPdfDoc.copyPages(pdfDoc, pdfDoc.getPageIndices());
+  const srcPages = srcDoc.getPages();
+  const embeddedPages = await Promise.all(
+    srcPages.map((page) => newDoc.embedPage(page))
+  );
+  
+  let pageValueCalc = (pageValue >= 300 ? 300 : pageValue)
 
-for (let i = 0; i < 50; i++) {
-  pages.forEach((pag) => newPdfDoc.addPage(pag));
-}
+  for (let i = startIndex; i < pageValueCalc; i++) {
+    embeddedPages.forEach((embPage) => {
+      const { width, height } = embPage;
+      const page = newDoc.addPage([width, height]);
+      page.drawPage(embPage);
+    });
+  }
 
-const file = await newPdfDoc.save();
-setBufferState(file)
-console.log(file)
-return file;
-
+  const file = await newDoc.save({ useObjectStreams: true });
+  setBufferState(file);
+  return file;
 }
