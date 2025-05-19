@@ -99,7 +99,7 @@ const App = () => {
       const modifiedPdfBytes = await pdfDoc.save({ useObjectStreams: true });
       return modifiedPdfBytes;
     } catch (error) {
-      message.error("Ошибка обработки: " + error.message);
+      console.error("Ошибка обработки: " + error.message);
     } finally {
       setProcessing(false);
     }
@@ -116,7 +116,7 @@ const App = () => {
     const rotate = form.getFieldValue("rotate");
     const scale = scaleCalc(dmtx_size);
     const etikPage = etikR * floods;
-debugger
+
       const pdfDoc = await PDFDocument.load(bufferState);
         const page = pdfDoc.getPage(0);
 
@@ -150,10 +150,18 @@ debugger
     const modPdf = await modifiedPdf();
 
     let startIndex = 0;
+    let pageValueCalc = 300;
 
           for(let i = 0; i < fileValue; i++){
-            startIndex = (i = (fileValue - 1) ? pageValue - ((fileValue - 1) * 300) : 300)
-            await copyPdf(modPdf, download, pageValue, startIndex)
+            console.log(startIndex)
+            console.log(pageValueCalc)
+
+            await copyPdf(modPdf, download, pageValueCalc, startIndex)
+            startIndex += (i = (fileValue - 1) ? pageValue - ((fileValue - 1) * 300) : 300)
+            pageValueCalc += (i = (fileValue - 1) ? pageValue - ((fileValue - 1) * 300) : 300)
+
+            console.log(startIndex)
+            console.log(pageValueCalc)
           }
 
      setLoading(false)
